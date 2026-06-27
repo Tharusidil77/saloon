@@ -157,19 +157,38 @@ async function loadExpenses() {
 
 /* ================= DB WRITE: SAVE LIVE TO AZURE ================= */
 async function addExpense() {
-    if (!selectedCategory || !selectedService) {
-        alert("Please select both a category and an expense type");
-        return;
+    const amt = Number(document.getElementById("amount").value);
+    if (!selectedCategory || !selectedService || amt <= 0) return alert("Complete fields with valid inputs.");
+
+    try {
+        let res = await fetch('/api/manageFinance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'addTransaction',
+                type: 'expense',
+                category: selectedCategory.toUpperCase(),
+                amount: amt,
+                description: selectedService,
+                date: new Date().toISOString().split("T")[0]
+            })
+        });
+
+        // CRITICAL GUARD: If server crashes, get the raw text instead of breaking on .json()
+        if (!res.ok) {
+            let errorText = await res.text();
+            console.error("Server Error Payload:", errorText);
+            alert("Server Error: Look at your browser console layout settings.");
+            return;
+        }
+
+        let resData = await res.json();
+        document.getElementById("amount").value = "";
+        loadExpenses();
+    } catch (err) { 
+        console.error("Failed to post payload parameters:", err); 
     }
-
-    let amountInput = document.getElementById("amount").value;
-    let amount = Number(amountInput);
-
-    if (!amount || amount <= 0) {
-        alert("Please enter a valid transactional amount");
-        return;
-    }
-
+}
     // Pull current user session identifier context (falls back to 1 if not explicit)
     const currentUserId = localStorage.getItem("loggedUserId") || 1;
 
