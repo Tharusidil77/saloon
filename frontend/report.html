@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>SalonLedger Reports</title>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+
+/* ================= BASE ================= */
+body{
+    background: linear-gradient(135deg,#eef2ff,#f8fafc);
+    font-family: 'Segoe UI', sans-serif;
+    color:#111827;
+}
+
+/* ================= GRID ================= */
+.wrapper{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:20px;
+}
+
+/* ================= GLASS CARD ================= */
+.box{
+    background: rgba(255,255,255,0.75);
+    backdrop-filter: blur(10px);
+    border-radius:18px;
+    padding:25px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.08);
+    border:1px solid rgba(255,255,255,0.4);
+    transition:0.3s;
+}
+
+.box:hover{
+    transform: translateY(-3px);
+}
+
+/* ================= TITLE ================= */
+.title{
+    font-weight:800;
+    font-size:18px;
+    margin-bottom:15px;
+}
+
+/* ================= INPUT ================= */
+input{
+    border-radius:12px !important;
+    padding:10px !important;
+    border:1px solid #e5e7eb !important;
+}
+
+/* ================= BUTTONS ================= */
+.btn{
+    border-radius:12px !important;
+    font-weight:600;
+    transition:0.2s;
+}
+
+.btn:hover{
+    transform: scale(1.02);
+}
+
+.btn-primary{
+    background: linear-gradient(135deg,#4f46e5,#2563eb);
+    border:none;
+}
+
+.btn-success{
+    background: linear-gradient(135deg,#22c55e,#16a34a);
+    border:none;
+}
+
+/* ================= KPI CARD ================= */
+.summary{
+    margin-top:12px;
+    padding:15px;
+    border-radius:14px;
+    background:white;
+    border:1px solid #eef2f7;
+    box-shadow:0 6px 15px rgba(0,0,0,0.04);
+}
+
+.label{
+    font-size:13px;
+    color:#6b7280;
+}
+
+.summary h4{
+    margin:0;
+    font-size:22px;
+    font-weight:800;
+}
+
+/* color accents */
+.income{
+    border-left:5px solid #22c55e;
+}
+
+.expense{
+    border-left:5px solid #ef4444;
+}
+
+.profit{
+    border-left:5px solid #4f46e5;
+}
+
+/* ================= CHART ================= */
+.chart-box{
+    margin-top:25px;
+    background: rgba(255,255,255,0.85);
+    backdrop-filter: blur(10px);
+    padding:25px;
+    border-radius:18px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.08);
+}
+
+/* ================= HEADER ================= */
+h3{
+    font-weight:900;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="container mt-4">
+
+<h3 class="mb-4">📊 Financial Reports Dashboard</h3>
+
+<div class="wrapper">
+
+<!-- ================= DAILY ================= -->
+<div class="box">
+
+<h4 class="title">📅 Daily Report</h4>
+
+<input type="date" id="dailyDate" class="form-control">
+
+<button class="btn btn-primary w-100 mt-3" onclick="dailyReport()">
+Generate Daily Report
+</button>
+
+<button class="btn btn-success w-100 mt-2" onclick="downloadDaily()">
+Download Report
+</button>
+
+<div class="summary income mt-4">
+<div class="label">Total Income</div>
+<h4 id="dIncome">0</h4>
+</div>
+
+<div class="summary expense">
+<div class="label">Total Expense</div>
+<h4 id="dExpense">0</h4>
+</div>
+
+<div class="summary profit">
+<div class="label">Profit</div>
+<h4 id="dProfit">0</h4>
+</div>
+
+</div>
+
+<!-- ================= MONTHLY ================= -->
+<div class="box">
+
+<h4 class="title">📆 Monthly Report</h4>
+
+<input type="month" id="monthlyDate" class="form-control">
+
+<button class="btn btn-primary w-100 mt-3" onclick="monthlyReport()">
+Generate Monthly Report
+</button>
+
+<button class="btn btn-success w-100 mt-2" onclick="downloadMonthly()">
+Download Report
+</button>
+
+<div class="summary income mt-4">
+<div class="label">Total Income</div>
+<h4 id="mIncome">0</h4>
+</div>
+
+<div class="summary expense">
+<div class="label">Total Expense</div>
+<h4 id="mExpense">0</h4>
+</div>
+
+<div class="summary profit">
+<div class="label">Profit</div>
+<h4 id="mProfit">0</h4>
+</div>
+
+</div>
+
+</div>
+
+<!-- ================= CHART ================= -->
+<div class="chart-box mt-4">
+
+<h4 class="mb-3">📈 Income vs Expense Analytics</h4>
+
+<canvas id="chart"></canvas>
+
+</div>
+
+</div>
+
+<script>
+
+let chart;
+
+/* ================= DAILY ================= */
+function dailyReport(){
+
+let date = document.getElementById("dailyDate").value;
+
+let income = JSON.parse(localStorage.getItem("salonIncome")) || [];
+let expense = JSON.parse(localStorage.getItem("salonExpense")) || [];
+
+let totalIncome =
+income.filter(i=>i.date===date)
+.reduce((s,i)=>s+Number(i.price),0);
+
+let totalExpense =
+expense.filter(i=>i.date===date)
+.reduce((s,i)=>s+Number(i.amount),0);
+
+let profit = totalIncome-totalExpense;
+
+document.getElementById("dIncome").innerText = totalIncome;
+document.getElementById("dExpense").innerText = totalExpense;
+document.getElementById("dProfit").innerText = profit;
+
+updateChart(totalIncome,totalExpense);
+}
+
+/* ================= MONTHLY ================= */
+function monthlyReport(){
+
+let month = document.getElementById("monthlyDate").value;
+
+let income = JSON.parse(localStorage.getItem("salonIncome")) || [];
+let expense = JSON.parse(localStorage.getItem("salonExpense")) || [];
+
+let totalIncome =
+income.filter(i=>i.date.startsWith(month))
+.reduce((s,i)=>s+Number(i.price),0);
+
+let totalExpense =
+expense.filter(i=>i.date.startsWith(month))
+.reduce((s,i)=>s+Number(i.amount),0);
+
+let profit = totalIncome-totalExpense;
+
+document.getElementById("mIncome").innerText = totalIncome;
+document.getElementById("mExpense").innerText = totalExpense;
+document.getElementById("mProfit").innerText = profit;
+
+updateChart(totalIncome,totalExpense);
+}
+
+/* ================= CHART ================= */
+function updateChart(income,expense){
+
+if(chart) chart.destroy();
+
+chart = new Chart(document.getElementById("chart"),{
+type:'bar',
+data:{
+labels:['Income','Expense'],
+datasets:[{
+label:'Amount (Rs)',
+data:[income,expense],
+backgroundColor:['#22c55e','#ef4444'],
+borderRadius:12
+}]
+},
+options:{
+plugins:{
+legend:{display:false}
+},
+scales:{
+y:{beginAtZero:true}
+}
+}
+});
+}
+
+/* ================= DOWNLOAD ================= */
+function downloadDaily(){
+let text =
+`DAILY REPORT\nIncome: ${document.getElementById("dIncome").innerText}\nExpense: ${document.getElementById("dExpense").innerText}\nProfit: ${document.getElementById("dProfit").innerText}`;
+
+download(text,"daily-report.txt");
+}
+
+function downloadMonthly(){
+let text =
+`MONTHLY REPORT\nIncome: ${document.getElementById("mIncome").innerText}\nExpense: ${document.getElementById("mExpense").innerText}\nProfit: ${document.getElementById("mProfit").innerText}`;
+
+download(text,"monthly-report.txt");
+}
+
+function download(text,filename){
+let blob = new Blob([text],{type:"text/plain"});
+let a = document.createElement("a");
+a.href = URL.createObjectURL(blob);
+a.download = filename;
+a.click();
+}
+
+</script>
+
+</body>
+</html>
