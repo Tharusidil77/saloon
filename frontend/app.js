@@ -285,3 +285,28 @@ async function sendDataToBackend() {
         console.error("Could not reach backend:", error);
     }
 }
+// Example: Adding an expense from your 'expense.html' view
+async function saveExpense(userId, category, amount, notes) {
+    const payload = {
+        action: 'addTransaction',
+        userId: userId,
+        type: 'expense',
+        category: category,
+        amount: parseFloat(amount),
+        description: notes
+    };
+
+    try {
+        const response = await fetch('/api/manageFinance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+        if (result.success) {
+            alert(result.message); // Alerts: "expense recorded successfully! 💰"
+        }
+    } catch (error) {
+        console.error("Failed to connect to MySQL backend API", error);
+    }
+}
