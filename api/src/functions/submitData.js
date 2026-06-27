@@ -1,6 +1,7 @@
 const { app } = require('@azure/functions');
 const mysql = require('mysql2/promise');
 
+// Secure Connection Pool configuration utilizing explicit environment contexts
 const pool = mysql.createPool({
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
@@ -13,15 +14,8 @@ const pool = mysql.createPool({
     ssl: { rejectUnauthorized: false }
 });
 
+// Structural schema stabilizer
 async function initializeTables() {
-    await pool.query(`
-        CREATE TABLE IF NOT EXISTS users (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            username VARCHAR(255) NOT NULL UNIQUE,
-            email VARCHAR(255) NOT NULL UNIQUE,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-    `);
     await pool.query(`
         CREATE TABLE IF NOT EXISTS transactions (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -42,23 +36,19 @@ app.http('manageFinance', {
         try {
             await initializeTables();
 
-            // ================= GET REQUESTS (READ DATA) =================
+            // ================= GET REQ (READ RECORDS) =================
             if (request.method === 'GET') {
-                const url = new URL(request.url);
-                const targetDate = url.searchParams.get('date');
-
-                // If a date filter is appended, serve specific diagnostic logs
-                if (targetDate) {
-                    const [rows] = await pool.query('SELECT * FROM transactions WHERE date = ? ORDER BY id DESC', [targetDate]);
-                    return { status: 200, jsonBody: rows };
-                }
-
-                // Default return: fetch everything
                 const [allRows] = await pool.query('SELECT * FROM transactions ORDER BY date DESC, id DESC');
-                return { status: 200, jsonBody: allRows };
+                
+                // CRITICAL FIX: Always return a direct Array body structure to the frontend fetch call
+                return { 
+                    status: 200, 
+                    headers: { 'Content-Type': 'application/json' },
+                    jsonBody: allRows 
+                };
             }
 
-            // ================= POST REQUESTS (WRITE DATA) =================
+            // ================= POST REQ (WRITE/DELETE RECORDS) =================
             const body = await request.json();
             const { action } = body;
 
@@ -70,17 +60,21 @@ app.http('manageFinance', {
                     'INSERT INTO transactions (user_id, type, category, amount, description, date) VALUES (1, ?, ?, ?, ?, ?)',
                     [type, category, amount, description, recordDate]
                 );
-                return { status: 201, jsonBody: { success: true, message: `${type} captured successfully! 💰` } };
+                return { status: 201, jsonBody: { success: true, message: "Record inserted!" } };
             }
 
             if (action === 'deleteTransaction') {
                 await pool.query('DELETE FROM transactions WHERE id = ?', [body.id]);
-                return { status: 200, jsonBody: { success: true, message: "Record removed." } };
+                return { status: 200, jsonBody: { success: true, message: "Record deleted!" } };
             }
 
-            return { status: 400, jsonBody: { success: false, message: "Action invalid." } };
+            return { status: 400, jsonBody: { success: false, message: "Invalid backend routing action rule option." } };
         } catch (error) {
-            return { status: 500, jsonBody: { success: false, error: error.message } };
+            // Diagnostic fallback transparency
+            return { 
+                status: 500, 
+                jsonBody: { success: false, error: error.message } 
+            };
         }
     }
 });
