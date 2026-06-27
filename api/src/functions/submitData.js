@@ -1,31 +1,35 @@
 const { app } = require('@azure/functions');
-const mysql = require('mysql2/promise');
+const sql = require('mssql');
 
-// Secure Connection Pool configuration utilizing explicit environment contexts
-const pool = mysql.createPool({
-    host: process.env.DB_HOST,
+// Azure Microsoft SQL Server configuration config context profile mapper
+const config = {
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME || 'flexibleserverdb',
-    port: 3306,
-    waitForConnections: true,
-    connectionLimit: 5,
-    queueLimit: 0,
-    ssl: { rejectUnauthorized: false }
-});
+    server: process.env.DB_HOST, 
+    database: process.env.DB_NAME,
+    port: 1433,
+    options: {
+        encrypt: true, // Crucial requirement for Azure SQL connections
+        trustServerCertificate: false
+    }
+};
 
-// Structural schema stabilizer
+// Structural MSSQL schema stabilizer 
 async function initializeTables() {
-    await pool.query(`
-        CREATE TABLE IF NOT EXISTS transactions (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            user_id INT DEFAULT 1,
-            type ENUM('income', 'expense') NOT NULL,
-            category VARCHAR(100),
-            amount DECIMAL(10, 2) NOT NULL,
-            description TEXT,
-            date DATE NOT NULL
-        );
+    let pool = await sql.connect(config);
+    await pool.request().query(`
+        IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[transactions]') AND type in (N'U'))
+        BEGIN
+            CREATE TABLE [dbo].[transactions] (
+                [id] INT IDENTITY(1,1) PRIMARY KEY,
+                [user_id] INT DEFAULT 1,
+                [type] VARCHAR(20) NOT NULL CHECK ([type] IN ('income', 'expense')),
+                [category] VARCHAR(100),
+                [amount] DECIMAL(10, 2) NOT NULL,
+                [description] VARCHAR(MAX),
+                [date] DATE NOT NULL
+            );
+        END
     `);
 }
 
@@ -35,20 +39,20 @@ app.http('manageFinance', {
     handler: async (request, context) => {
         try {
             await initializeTables();
+            let pool = await sql.connect(config);
 
             // ================= GET REQ (READ RECORDS) =================
             if (request.method === 'GET') {
-                const [allRows] = await pool.query('SELECT * FROM transactions ORDER BY date DESC, id DESC');
+                const result = await pool.request().query('SELECT * FROM [dbo].[transactions] ORDER BY [date] DESC, [id] DESC');
                 
                 return { 
                     status: 200, 
                     headers: { 'Content-Type': 'application/json' },
-                    jsonBody: allRows 
+                    jsonBody: result.recordset // Returns a clean JavaScript Array structure directly
                 };
             }
 
             // ================= POST REQ (WRITE/DELETE RECORDS) =================
-            // CRITICAL FIX: Only parse body if method is POST to prevent crashing on GET requests
             const body = await request.json();
             const { action } = body;
 
@@ -56,30 +60,39 @@ app.http('manageFinance', {
                 const { type, category, amount, description, date } = body;
                 const recordDate = date || new Date().toISOString().split('T')[0];
 
-                await pool.query(
-                    'INSERT INTO transactions (user_id, type, category, amount, description, date) VALUES (1, ?, ?, ?, ?, ?)',
-                    [type, category, amount, description, recordDate]
-                );
+                await pool.request()
+                    .input('type', sql.VarChar, type)
+                    .input('category', sql.VarChar, category)
+                    .input('amount', sql.Decimal(10, 2), amount)
+                    .input('description', sql.VarChar, description)
+                    .input('date', sql.Date, recordDate)
+                    .query(`
+                        INSERT INTO [dbo].[transactions] ([user_id], [type], [category], [amount], [description], [date]) 
+                        VALUES (1, @type, @category, @amount, @description, @date)
+                    `);
+
                 return { status: 201, jsonBody: { success: true, message: "Record inserted!" } };
             }
 
             if (action === 'deleteTransaction') {
-                await pool.query('DELETE FROM transactions WHERE id = ?', [body.id]);
+                await pool.request()
+                    .input('id', sql.Int, body.id)
+                    .query('DELETE FROM [dbo].[transactions] WHERE [id] = @id');
+
                 return { status: 200, jsonBody: { success: true, message: "Record deleted!" } };
             }
 
-            return { status: 400, jsonBody: { success: false, message: "Invalid backend routing action rule option." } };
+            return { status: 400, jsonBody: { success: false, message: "Invalid action routing rule option." } };
 
         } catch (error) {
-            // Diagnostic bypass: This catches and prints out database connection config issues cleanly
+            // Keep status 200 so you can read exact authentication mistakes easily in your browser console if they happen
             return { 
-                status: 200, // Kept at 200 so you can read the error explicitly on your frontend screen
+                status: 200, 
                 headers: { 'Content-Type': 'application/json' },
                 jsonBody: { 
                     success: false, 
                     errorMessage: error.message,
-                    errorStack: error.stack,
-                    tip: "If you see ETIMEDOUT here, check your MySQL server networking/firewall settings in the Azure Portal."
+                    errorStack: error.stack
                 } 
             };
         }
