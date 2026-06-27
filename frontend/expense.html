@@ -2,27 +2,28 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Salon Expenses System</title>
 
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
+body { background:#f5f7fb; }
 
-body{ background:#f5f7fb; }
-
-.category-card{
+.category-card {
     background:white;
     border-radius:15px;
     padding:15px;
     box-shadow:0 2px 12px rgba(0,0,0,0.1);
     cursor:pointer;
     text-align:center;
+    transition: transform 0.2s ease;
 }
 
-.category-card:hover{ transform:scale(1.03); }
+.category-card:hover { transform:scale(1.03); }
 
-.service-box{
+.service-box {
     background:#fff;
     padding:10px;
     border-radius:10px;
@@ -31,250 +32,236 @@ body{ background:#f5f7fb; }
     cursor:pointer;
 }
 
-.service-box.active{
+.service-box.active {
     background:#dc2626;
     color:white;
 }
 
-.right-box{
+.right-box {
     background:white;
     padding:15px;
     border-radius:15px;
 }
 
-.table-box{
+.table-box {
     background:white;
     padding:15px;
     border-radius:15px;
     margin-top:20px;
 }
-
-img{
-    width:100%;
-    height:100px;
-    object-fit:cover;
-    border-radius:10px;
-}
-
 </style>
 </head>
 
 <body>
 
 <div class="container mt-4">
+    <div class="mb-3">
+        <a href="dashboard.html" class="btn btn-secondary btn-sm">⬅ Back to Dashboard</a>
+    </div>
 
-<div class="row">
+    <div class="row">
+        <div class="col-md-8">
+            <h3>💸 Salon Expense Dashboard</h3>
 
-<div class="col-md-8">
+            <div class="row mt-3">
+                <div class="col-md-4">
+                    <div class="category-card" onclick="selectCategory('inventory')">🧴 Inventories</div>
+                </div>
+                <div class="col-md-4">
+                    <div class="category-card" onclick="selectCategory('bills')">🧾 Bills</div>
+                </div>
+                <div class="col-md-4">
+                    <div class="category-card" onclick="selectCategory('others')">🍔 Others</div>
+                </div>
+            </div>
 
-<h3>💸 Salon Expense Dashboard</h3>
+            <div class="mt-4">
+                <h5>Select Expense Type</h5>
+                <div id="services"></div>
+                <input id="amount" type="number" class="form-control mt-2" placeholder="Amount (Rs.)">
+                <button class="btn btn-danger mt-3" onclick="addExpense()">Add Expense</button>
+            </div>
 
-<div class="row mt-3">
+            <div class="table-box mt-4">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Type</th>
+                            <th>Amount</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table"></tbody>
+                </table>
+            </div>
+        </div>
 
-<div class="col-md-4">
-<div class="category-card" onclick="selectCategory('inventory')">🧴 Inventories</div>
-</div>
-
-<div class="col-md-4">
-<div class="category-card" onclick="selectCategory('bills')">🧾 Bills</div>
-</div>
-
-<div class="col-md-4">
-<div class="category-card" onclick="selectCategory('others')">🍔 Others</div>
-</div>
-
-</div>
-
-<div class="mt-4">
-
-<h5>Select Expense Type</h5>
-
-<div id="services"></div>
-
-<input id="amount" class="form-control mt-2" placeholder="Amount">
-
-<button class="btn btn-danger mt-3" onclick="addExpense()">
-Add Expense
-</button>
-
-</div>
-
-<div class="table-box mt-4">
-
-<table class="table table-striped">
-<thead>
-<tr>
-<th>Category</th>
-<th>Type</th>
-<th>Amount</th>
-<th>Date</th>
-<th>Action</th>
-</tr>
-</thead>
-<tbody id="table"></tbody>
-</table>
-
-</div>
-
-</div>
-
-<div class="col-md-4">
-<div class="right-box">
-<h5>Expense Chart</h5>
-<canvas id="chart"></canvas>
-</div>
-</div>
-
-</div>
+        <div class="col-md-4">
+            <div class="right-box">
+                <h5>Expense Chart</h5>
+                <canvas id="chart"></canvas>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
-/* ================= DATA ================= */
-let data = JSON.parse(localStorage.getItem("salonExpense")) || [];
-
+/* ================= GLOBAL SETTINGS ================= */
+// Points directly to the function path inside your api folder
+const API = "/api/submitdata"; 
+let data = [];
 let table = document.getElementById("table");
-
 let selectedCategory = "";
 let selectedService = "";
 
-/* ================= SERVICES ================= */
 const services = {
-inventory:["Shampoo","Soap","Oils","Hair Colors","Blades","Creams","Facial Items","Makeup Items"],
-bills:["Water","Electricity","Rent","Internet"],
-others:["Food","Transport","Other"]
+    inventory: ["Shampoo","Soap","Oils","Hair Colors","Blades","Creams","Facial Items","Makeup Items"],
+    bills: ["Water","Electricity","Rent","Internet"],
+    others: ["Food","Transport","Other"]
 };
 
-/* ================= CATEGORY ================= */
-function selectCategory(cat){
-
+/* ================= ACTIONS ================= */
+function selectCategory(cat) {
     selectedCategory = cat;
-
     let html = "";
-
-    services[cat].forEach(s=>{
-        html += `<div class="service-box" onclick="selectService('${s}',this)">${s}</div>`;
+    services[cat].forEach(s => {
+        html += `<div class="service-box" onclick="selectService('${s}', this)">${s}</div>`;
     });
-
     document.getElementById("services").innerHTML = html;
-
     selectedService = "";
 }
 
-/* ================= SERVICE ================= */
-function selectService(service,el){
-
+function selectService(service, el) {
     selectedService = service;
-
-    document.querySelectorAll(".service-box")
-    .forEach(x => x.classList.remove("active"));
-
+    document.querySelectorAll(".service-box").forEach(x => x.classList.remove("active"));
     el.classList.add("active");
 }
 
-/* ================= ADD ================= */
-function addExpense(){
-
-    if(!selectedCategory || !selectedService){
-        alert("Select category and service");
-        return;
+/* ================= DB READ: FETCH LIVE FROM AZURE ================= */
+async function loadExpenses() {
+    try {
+        let res = await fetch(API);
+        if (!res.ok) throw new Error("Could not reach backend API");
+        let rawTransactions = await res.json();
+        
+        // Filter out only the "expense" types dynamically coming from MySQL rows
+        data = rawTransactions.filter(item => item.type === "expense");
+        render();
+    } catch (err) {
+        console.error("Database loading exception:", err);
     }
-
-    let amount = Number(document.getElementById("amount").value);
-
-    if(!amount || amount <= 0){
-        alert("Enter valid amount");
-        return;
-    }
-
-    let date = new Date().toISOString().split("T")[0];
-
-    data.push({
-        category:selectedCategory,
-        type:selectedService,
-        amount:amount,
-        date:date
-    });
-
-    localStorage.setItem("salonExpense", JSON.stringify(data));
-
-    render();
 }
 
-/* ================= RENDER ================= */
-function render(){
+/* ================= DB WRITE: SAVE LIVE TO AZURE ================= */
+async function addExpense() {
+    if (!selectedCategory || !selectedService) {
+        alert("Please select both a category and an expense type");
+        return;
+    }
 
+    let amountInput = document.getElementById("amount").value;
+    let amount = Number(amountInput);
+
+    if (!amount || amount <= 0) {
+        alert("Please enter a valid transactional amount");
+        return;
+    }
+
+    // Pull current user session identifier context (falls back to 1 if not explicit)
+    const currentUserId = localStorage.getItem("loggedUserId") || 1;
+
+    const payload = {
+        action: "addTransaction",
+        userId: parseInt(currentUserId),
+        type: "expense",
+        category: selectedCategory.toUpperCase(),
+        amount: amount,
+        description: selectedService
+    };
+
+    try {
+        let res = await fetch(API, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+        
+        let resData = await res.json();
+        
+        if (resData.success) {
+            alert("Expense Recorded Successfully! 📉");
+            document.getElementById("amount").value = "";
+            // Reload from Azure database immediately to refresh layout
+            loadExpenses(); 
+        } else {
+            alert("Error saving transaction: " + resData.error);
+        }
+    } catch (err) {
+        console.error("Failed to post payload parameters:", err);
+        alert("Network communication error.");
+    }
+}
+
+/* ================= RENDER INTERFACE UI ================= */
+function render() {
     table.innerHTML = "";
+    if (data.length === 0) {
+        table.innerHTML = `<tr><td colspan="4" class="text-center text-muted">No expense records found.</td></tr>`;
+        updateChart();
+        return;
+    }
 
-    data.forEach((i,index)=>{
-
+    data.forEach(i => {
+        let cleanDate = i.date ? i.date.split("T")[0] : "Recent";
         table.innerHTML += `
         <tr>
-        <td>${i.category}</td>
-        <td>${i.type}</td>
-        <td>${i.amount}</td>
-        <td>${i.date}</td>
-        <td>
-            <button class="btn btn-warning btn-sm" onclick="edit(${index})">Edit</button>
-            <button class="btn btn-danger btn-sm" onclick="del(${index})">Delete</button>
-        </td>
+            <td>${i.category}</td>
+            <td><span class="badge bg-danger">${i.description || i.type}</span></td>
+            <td>Rs. ${Number(i.amount).toFixed(2)}</td>
+            <td>${cleanDate}</td>
         </tr>`;
     });
 
     updateChart();
 }
 
-/* ================= DELETE ================= */
-function del(i){
-    data.splice(i,1);
-    localStorage.setItem("salonExpense", JSON.stringify(data));
-    render();
-}
-
-/* ================= EDIT ================= */
-function edit(i){
-
-    let item = data[i];
-
-    selectedCategory = item.category;
-    selectedService = item.type;
-
-    document.getElementById("amount").value = item.amount;
-
-    selectCategory(item.category);
-
-    data.splice(i,1);
-
-    render();
-}
-
-/* ================= CHART ================= */
+/* ================= CHART CONTROLS ================= */
 let chart;
-
-function updateChart(){
-
+function updateChart() {
     let totals = {};
-
-    data.forEach(i=>{
-        totals[i.type] = (totals[i.type] || 0) + Number(i.amount);
+    data.forEach(i => {
+        let key = i.description || i.type || "Other";
+        totals[key] = (totals[key] || 0) + Number(i.amount);
     });
 
     let labels = Object.keys(totals);
     let values = Object.values(totals);
 
-    if(chart) chart.destroy();
+    if (chart) chart.destroy();
 
-    chart = new Chart(document.getElementById("chart"),{
-        type:"pie",
-        data:{
-            labels:labels.length ? labels : ["No Data"],
-            datasets:[{
-                data:values.length ? values : [1]
+    chart = new Chart(document.getElementById("chart"), {
+        type: "pie",
+        data: {
+            labels: labels.length ? labels : ["No Data"],
+            datasets: [{
+                data: values.length ? values : [1],
+                backgroundColor: [
+                    '#ff6384', '#36a2eb', '#cc65fe', '#ffce56', '#4bc0c0', '#9966ff', '#ff9f40'
+                ]
             }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'bottom' }
+            }
         }
     });
 }
 
-render();
+// Automatically sync database status when page displays on screen
+window.addEventListener("load", loadExpenses);
 </script>
 
 </body>

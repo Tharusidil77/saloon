@@ -1,7 +1,7 @@
 const { app } = require('@azure/functions');
 const mysql = require('mysql2/promise');
 
-// 1. Initialize MySQL Connection Pool with Azure SSL requirements
+// Initialize MySQL Connection Pool with Azure SSL requirements
 const pool = mysql.createPool({
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
@@ -11,7 +11,6 @@ const pool = mysql.createPool({
     waitForConnections: true,
     connectionLimit: 5,
     queueLimit: 0,
-    // CRITICAL: Azure MySQL Flexible Server requires SSL to prevent connection dropping
     ssl: {
         rejectUnauthorized: false
     }
@@ -44,27 +43,37 @@ async function initializeTables() {
 
 // Register the Azure Function endpoint
 app.http('manageFinance', {
-    methods: ['POST', 'GET'], // Enabled GET so you can test it directly via a URL link
+    methods: ['POST', 'GET'], 
     authLevel: 'anonymous',
     handler: async (request, context) => {
         try {
             // Force database tables generation on execution call
             await initializeTables();
 
-            // Handle browser manual initialization check (GET request)
+            // ================= GET METHOD: FETCH DATA FROM DB =================
             if (request.method === 'GET') {
+                // Query both tables to pull your data records
+                const [transactions] = await pool.query('SELECT * FROM transactions ORDER BY date DESC');
+                
+                // Return the real live database rows straight to the frontend!
                 return { 
                     status: 200, 
-                    jsonBody: { success: true, message: "Azure MySQL Database tables initialized successfully! 🎉" } 
+                    jsonBody: transactions // This passes the array directly to safeFetch()
                 };
             }
 
-            // Handle functional app logic entries (POST request)
+            // ================= POST METHOD: SAVE DATA TO DB =================
             const body = await request.json();
             const { action } = body; 
 
             // --- ROUTE 1: CREATE A NEW USER ---
             if (action === 'createUser') {
+                // Insert only if user does not exist to avoid crashing on unique constraints
+                const [existing] = await pool.query('SELECT id FROM users WHERE email = ?', [body.email]);
+                if (existing.length > 0) {
+                    return { status: 200, jsonBody: { success: true, userId: existing[0].id, message: "Welcome back! 👤" } };
+                }
+
                 const [result] = await pool.query(
                     'INSERT INTO users (username, email) VALUES (?, ?)',
                     [body.username, body.email]
@@ -75,9 +84,19 @@ app.http('manageFinance', {
             // --- ROUTE 2: ADD INCOME OR EXPENSE ---
             if (action === 'addTransaction') {
                 const { userId, type, category, amount, description } = body; 
+                
+                // Fallback mechanism to ensure a default user ID exists if registration was skipped
+                let targetUserId = userId || 1;
+                const [userCheck] = await pool.query('SELECT id FROM users WHERE id = ?', [targetUserId]);
+                if (userCheck.length === 0) {
+                    // Create default tenant container record if missing
+                    await pool.query('INSERT IGNORE INTO users (id, username, email) VALUES (1, "admin", "admin@saloon.com")');
+                    targetUserId = 1;
+                }
+
                 await pool.query(
                     'INSERT INTO transactions (user_id, type, category, amount, description) VALUES (?, ?, ?, ?, ?)',
-                    [userId, type, category, amount, description]
+                    [targetUserId, type, category, amount, description]
                 );
                 return { status: 201, jsonBody: { success: true, message: `${type} recorded successfully! 💰` } };
             }
