@@ -131,17 +131,4 @@ function render() {
 function updateChart() {
     let totals = {};
     data.forEach(i => { totals[i.description] = (totals[i.description] || 0) + Number(i.amount); });
-    if (chart) chart.destroy();
-    chart = new Chart(document.getElementById("chart"), {
-        type: "pie",
-        data: {
-            labels: Object.keys(totals),
-            datasets: [{ data: Object.values(totals), backgroundColor: ['#ff6384', '#36a2eb', '#ffce56', '#4bc0c0'] }]
-        }
-    });
-}
-
-window.addEventListener("load", loadExpenses);
-</script>
-</body>
-</html>
+    if (chart) chart

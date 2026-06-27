@@ -1,72 +1,261 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Salon Manager - Dashboard</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body { background: #f5f7fb; font-family: system-ui; }
-        .metric-card { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-    </style>
-</head>
-<body>
-<div class="container mt-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>✂️ Salon Live Financial Dashboard</h2>
-        <div>
-            <a href="income.html" class="btn btn-success">+ Add Income</a>
-            <a href="expense.html" class="btn btn-danger">+ Add Expense</a>
-            <a href="report.html" class="btn btn-primary">📊 View Reports</a>
-        </div>
-    </div>
+    <meta charset="UTF-8"> 
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SalonLedger Dashboard</title>
 
-    <div class="row g-4 mb-4">
-        <div class="col-md-4">
-            <div class="metric-card border-start border-success border-4">
-                <small class="text-muted text-uppercase fw-bold">Today's Income</small>
-                <h3 id="todayIncome" class="text-success mt-1">Rs. 0.00</h3>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="metric-card border-start border-danger border-4">
-                <small class="text-muted text-uppercase fw-bold">Today's Expenses</small>
-                <h3 id="todayExpense" class="text-danger mt-1">Rs. 0.00</h3>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="metric-card border-start border-primary border-4">
-                <small class="text-muted text-uppercase fw-bold">Today's Net Profit</small>
-                <h3 id="todayProfit" class="text-primary mt-1">Rs. 0.00</h3>
-            </div>
-        </div>
-    </div>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<style>
+
+body{
+    background:#f4f6fb;
+    font-family: Arial;
+}
+
+/* SIDEBAR */
+.sidebar {
+    width: 240px;
+    height: 100vh;
+    position: fixed;
+    background: #0f172a;
+    color: white;
+    padding: 20px;
+}
+
+.sidebar h3{
+    margin-bottom:20px;
+}
+
+.sidebar a {
+    display: block;
+    color: #cbd5e1;
+    padding: 10px;
+    text-decoration: none;
+    margin-bottom:5px;
+    border-radius:8px;
+}
+
+.sidebar a:hover {
+    background: #1f2937;
+}
+
+/* MAIN */
+.content {
+    margin-left: 260px;
+    padding: 25px;
+}
+
+/* KPI CARDS */
+.kpi {
+    border-radius: 16px;
+    padding: 18px;
+    color: white;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.bg-income { background: linear-gradient(135deg,#4f46e5,#6366f1); }
+.bg-expense { background: linear-gradient(135deg,#ef4444,#f97316); }
+.bg-profit { background: linear-gradient(135deg,#22c55e,#16a34a); }
+
+/* NAV CARDS */
+.nav-card {
+    background: white;
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.1);
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.nav-card:hover {
+    transform: translateY(-5px);
+}
+
+.nav-card img {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+}
+
+.nav-body {
+    padding: 15px;
+}
+
+.nav-body p {
+    color: #666;
+    margin-bottom: 10px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+<h3>💇 SalonLedger</h3>
+
+<a href="dashboard.html">🏠 Dashboard</a>
+<a href="income.html">💰 Income</a>
+<a href="expense.html">💸 Expenses</a>
+<a href="goal.html">🎯 Goals</a>
+<a href="report.html">📊 Reports</a>
 </div>
 
-<script>
-async function syncDashboard() {
-    const today = new Date().toISOString().split("T")[0];
-    try {
-        const res = await fetch(`/api/manageFinance?date=${today}`);
-        if (!res.ok) throw new Error("Could not compute pipeline metrics");
-        const transactions = await res.json();
+<!-- CONTENT -->
+<div class="content">
 
-        let incomeSum = 0;
-        let expenseSum = 0;
+<h2>📊 Dashboard Overview</h2>
 
-        transactions.forEach(t => {
-            const amt = Number(t.amount);
-            if (t.type === 'income') incomeSum += amt;
-            if (t.type === 'expense') expenseSum += amt;
-        });
+<!-- ================= TODAY ================= -->
+<h5 class="mt-4">📅 Today Summary</h5>
 
-        document.getElementById("todayIncome").innerText = "Rs. " + incomeSum.toFixed(2);
-        document.getElementById("todayExpense").innerText = "Rs. " + expenseSum.toFixed(2);
-        document.getElementById("todayProfit").innerText = "Rs. " + (incomeSum - expenseSum).toFixed(2);
-    } catch (err) {
-        console.error("Dashboard metric parsing error:", err);
-    }
+<div class="row mt-3">
+
+<div class="col-md-4">
+<div class="kpi bg-income">
+<h6>Today Income</h6>
+<h3 id="todayIncome">0</h3>
+</div>
+</div>
+
+<div class="col-md-4">
+<div class="kpi bg-expense">
+<h6>Today Expense</h6>
+<h3 id="todayExpense">0</h3>
+</div>
+</div>
+
+<div class="col-md-4">
+<div class="kpi bg-profit">
+<h6>Today Profit</h6>
+<h3 id="todayProfit">0</h3>
+</div>
+</div>
+
+</div>
+
+<!-- ================= MONTH ================= -->
+<h5 class="mt-5">📆 This Month</h5>
+
+<div class="row mt-3">
+
+<div class="col-md-4">
+<div class="card p-3">
+<h6>Monthly Income</h6>
+<h4 id="monthIncome">0</h4>
+</div>
+</div>
+
+<div class="col-md-4">
+<div class="card p-3">
+<h6>Monthly Expense</h6>
+<h4 id="monthExpense">0</h4>
+</div>
+</div>
+
+<div class="col-md-4">
+<div class="card p-3">
+<h6>Monthly Profit</h6>
+<h4 id="monthProfit">0</h4>
+</div>
+</div>
+
+</div>
+
+<!-- ================= NAVIGATION CARDS ================= -->
+<h5 class="mt-5">⚡ Quick Access</h5>
+
+<div class="row mt-3">
+
+<!-- INCOME -->
+<div class="col-md-6">
+<div class="nav-card" onclick="goIncome()">
+<img src="https://images.unsplash.com/photo-1521791136064-7986c2920216">
+<div class="nav-body">
+<h5>Income Management</h5>
+<p>Add and manage all salon income easily</p>
+<button class="btn btn-primary btn-sm">Go to Income</button>
+</div>
+</div>
+</div>
+
+<!-- EXPENSE -->
+<div class="col-md-6">
+<div class="nav-card" onclick="goExpense()">
+<img src="https://images.unsplash.com/photo-1554224155-6726b3ff858f">
+<div class="nav-body">
+<h5>Expense Management</h5>
+<p>Track salon expenses and control budget</p>
+<button class="btn btn-danger btn-sm">Go to Expenses</button>
+</div>
+</div>
+</div>
+
+</div>
+
+</div>
+
+<script src="app.js">
+
+/* ================= NAVIGATION ================= */
+function goIncome(){
+    window.location.href = "income.html";
 }
-window.addEventListener("load", syncDashboard);
+
+function goExpense(){
+    window.location.href = "expense.html";
+}
+
+/* ================= DATA ================= */
+
+let incomeData = JSON.parse(localStorage.getItem("salonIncome")) || [];
+let expenseData = JSON.parse(localStorage.getItem("salonExpense")) || [];
+
+/* ================= DATE ================= */
+let today = new Date().toISOString().split("T")[0];
+let month = today.substring(0,7);
+
+/* ================= TODAY ================= */
+
+let todayIncome = incomeData
+.filter(i => i.date === today)
+.reduce((sum,i)=> sum + Number(i.price),0);
+
+let todayExpense = expenseData
+.filter(i => i.date === today)
+.reduce((sum,i)=> sum + Number(i.amount),0);
+
+/* ================= MONTH ================= */
+
+let monthIncome = incomeData
+.filter(i => i.date.startsWith(month))
+.reduce((sum,i)=> sum + Number(i.price),0);
+
+let monthExpense = expenseData
+.filter(i => i.date.startsWith(month))
+.reduce((sum,i)=> sum + Number(i.amount),0);
+
+/* ================= PROFIT ================= */
+
+let todayProfit = todayIncome - todayExpense;
+let monthProfit = monthIncome - monthExpense;
+
+/* ================= UI ================= */
+
+document.getElementById("todayIncome").innerText = todayIncome;
+document.getElementById("todayExpense").innerText = todayExpense;
+document.getElementById("todayProfit").innerText = todayProfit;
+
+document.getElementById("monthIncome").innerText = monthIncome;
+document.getElementById("monthExpense").innerText = monthExpense;
+document.getElementById("monthProfit").innerText = monthProfit;
+
+
 </script>
+
 </body>
 </html>
