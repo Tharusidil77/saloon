@@ -1,13 +1,12 @@
 const { app } = require('@azure/functions');
 const mysql = require('mysql2/promise');
-
-// Initialize MySQL Connection Pool with Azure SSL requirements
+// 1. Initialize MySQL Connection Pool with Azure SSL requirements
 const pool = mysql.createPool({
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
-    port: parseInt(process.env.DB_PORT || '3306'),
+    port: 3306, // Hardcode this to 3306 directly to eliminate port parsing bugs!
     waitForConnections: true,
     connectionLimit: 5,
     queueLimit: 0,
@@ -15,7 +14,6 @@ const pool = mysql.createPool({
         rejectUnauthorized: false
     }
 });
-
 // Helper to initialize tables automatically if they don't exist
 async function initializeTables() {
     await pool.query(`

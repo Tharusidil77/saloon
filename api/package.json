@@ -8,7 +8,9 @@
   },
   "dependencies": {
     "@azure/functions": "^4.0.0",
-    "mysql2": "^3.22.5"
+    "mysql2": "^3.11.5"
   },
   "main": "src/{index.js,functions/*.js}"
 }
+
+
