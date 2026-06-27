@@ -40,7 +40,6 @@ app.http('manageFinance', {
             if (request.method === 'GET') {
                 const [allRows] = await pool.query('SELECT * FROM transactions ORDER BY date DESC, id DESC');
                 
-                // CRITICAL FIX: Always return a direct Array body structure to the frontend fetch call
                 return { 
                     status: 200, 
                     headers: { 'Content-Type': 'application/json' },
@@ -49,6 +48,7 @@ app.http('manageFinance', {
             }
 
             // ================= POST REQ (WRITE/DELETE RECORDS) =================
+            // CRITICAL FIX: Only parse body if method is POST to prevent crashing on GET requests
             const body = await request.json();
             const { action } = body;
 
@@ -69,11 +69,18 @@ app.http('manageFinance', {
             }
 
             return { status: 400, jsonBody: { success: false, message: "Invalid backend routing action rule option." } };
+
         } catch (error) {
-            // Diagnostic fallback transparency
+            // Diagnostic bypass: This catches and prints out database connection config issues cleanly
             return { 
-                status: 500, 
-                jsonBody: { success: false, error: error.message } 
+                status: 200, // Kept at 200 so you can read the error explicitly on your frontend screen
+                headers: { 'Content-Type': 'application/json' },
+                jsonBody: { 
+                    success: false, 
+                    errorMessage: error.message,
+                    errorStack: error.stack,
+                    tip: "If you see ETIMEDOUT here, check your MySQL server networking/firewall settings in the Azure Portal."
+                } 
             };
         }
     }
