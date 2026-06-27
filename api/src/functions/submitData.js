@@ -1,16 +1,20 @@
 const { app } = require('@azure/functions');
 const mysql = require('mysql2/promise');
 
-// 1. Initialize MySQL Connection Pool
+// 1. Initialize MySQL Connection Pool with Azure SSL requirements
 const pool = mysql.createPool({
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
-    port: process.env.DB_PORT || 3306,
+    port: parseInt(process.env.DB_PORT || '3306'),
     waitForConnections: true,
     connectionLimit: 5,
-    queueLimit: 0
+    queueLimit: 0,
+    // CRITICAL: Azure MySQL Flexible Server requires SSL to prevent connection dropping
+    ssl: {
+        rejectUnauthorized: false
+    }
 });
 
 // Helper to initialize tables automatically if they don't exist
@@ -23,6 +27,7 @@ async function initializeTables() {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     `);
+    
     await pool.query(`
         CREATE TABLE IF NOT EXISTS transactions (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -37,14 +42,26 @@ async function initializeTables() {
     `);
 }
 
+// Register the Azure Function endpoint
 app.http('manageFinance', {
-    methods: ['POST'],
+    methods: ['POST', 'GET'], // Enabled GET so you can test it directly via a URL link
     authLevel: 'anonymous',
     handler: async (request, context) => {
         try {
-            await initializeTables(); // Ensure your MySQL database architecture is ready
+            // Force database tables generation on execution call
+            await initializeTables();
+
+            // Handle browser manual initialization check (GET request)
+            if (request.method === 'GET') {
+                return { 
+                    status: 200, 
+                    jsonBody: { success: true, message: "Azure MySQL Database tables initialized successfully! 🎉" } 
+                };
+            }
+
+            // Handle functional app logic entries (POST request)
             const body = await request.json();
-            const { action } = body; // 'createUser', 'addIncome', or 'addExpense'
+            const { action } = body; 
 
             // --- ROUTE 1: CREATE A NEW USER ---
             if (action === 'createUser') {
@@ -57,7 +74,7 @@ app.http('manageFinance', {
 
             // --- ROUTE 2: ADD INCOME OR EXPENSE ---
             if (action === 'addTransaction') {
-                const { userId, type, category, amount, description } = body; // type is 'income' or 'expense'
+                const { userId, type, category, amount, description } = body; 
                 await pool.query(
                     'INSERT INTO transactions (user_id, type, category, amount, description) VALUES (?, ?, ?, ?, ?)',
                     [userId, type, category, amount, description]
